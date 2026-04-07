@@ -19,7 +19,7 @@ export default function Greeting() {
 
   return (
     <div className="mb-12 animate-fadeIn">
-      <h2 className="font-cormorant text-3xl sm:text-4xl font-light mb-2">
+      <h2 className="font-cormorant text-3xl sm:text-4xl font-normal mb-2">
         {greeting}.
       </h2>
       <p className="text-curso-subtle text-lg">

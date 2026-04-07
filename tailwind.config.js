@@ -15,8 +15,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        cormorant: ['Cormorant Garamond', 'serif'],
-        inter: ['Inter', 'sans-serif'],
+        cormorant: ['Lato', 'sans-serif'],
+        inter: ['Lato', 'sans-serif'],
       },
       letterSpacing: {
         wide: '0.15em',

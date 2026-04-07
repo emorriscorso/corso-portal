@@ -18,7 +18,7 @@ interface AreaSectionProps {
 export default function AreaSection({ title, apps }: AreaSectionProps) {
   return (
     <section className="mb-16">
-      <h2 className="font-cormorant text-2xl tracking-wide text-curso-cream/70 uppercase mb-6 font-light">
+      <h2 className="font-cormorant text-2xl tracking-wide text-curso-cream/70 uppercase mb-6 font-normal">
         {title}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
