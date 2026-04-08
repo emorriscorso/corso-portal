@@ -17,7 +17,7 @@ export default function RootLayout({
         {/* Header */}
         <header className="border-b border-corso-cream/10 py-6 px-4 sm:px-8">
           <div className="max-w-7xl mx-auto">
-            <h1 className="font-cormorant text-4xl sm:text-5xl tracking-wide font-normal">
+            <h1 className="text-4xl sm:text-5xl tracking-[0.24em] font-normal">
               CORSO
             </h1>
             <p className="text-corso-subtle text-sm mt-1 tracking-wide">

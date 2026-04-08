@@ -19,6 +19,8 @@ export interface OfficeSessionSnapshot {
   channel: string;
   kind: 'conversation' | 'subagent-run';
   status: OfficePresence;
+  statusLabel: string;
+  statusReason: string;
   active: boolean;
   messageCount: number;
   tokenCount: number;
@@ -29,6 +31,7 @@ export interface OfficeSessionSnapshot {
   recentFiles: string[];
   provider: string;
   model: string;
+  lastRole?: string;
   controllerSessionKey?: string;
   requesterSessionKey?: string;
 }
@@ -39,6 +42,8 @@ export interface OfficeAgentSnapshot {
   provider: string;
   model: string;
   presence: OfficePresence;
+  statusLabel: string;
+  statusReason: string;
   tokensUsed: number;
   activeSessions: number;
   recentFiles: string[];

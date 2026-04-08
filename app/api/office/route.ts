@@ -142,12 +142,70 @@ function minutesSince(timestamp: string, nowMs: number): number {
   return Math.max(0, (nowMs - new Date(timestamp).getTime()) / 60000);
 }
 
-function inferPresence(updatedAt: string, nowMs: number): OfficePresence {
-  const deltaMinutes = minutesSince(updatedAt, nowMs);
+function isSilentOrHousekeeping(role?: string, preview?: string) {
+  const value = (preview || '').trim();
 
-  if (deltaMinutes <= ACTIVE_MINUTES) return 'working';
-  if (deltaMinutes <= IDLE_MINUTES) return 'idle';
-  return 'offline';
+  if (role === 'system') return true;
+  if (!value) return true;
+  if (value === 'NO_REPLY' || value === 'HEARTBEAT_OK') return true;
+  if (value.startsWith('[{"type":"thinking"')) return true;
+  if (value.startsWith('LCM compaction')) return true;
+  if (value.includes('Compactación de contexto')) return true;
+  if (value.includes('ejecución silenciosa')) return true;
+
+  return false;
+}
+
+function describePresence(args: {
+  updatedAt: string;
+  nowMs: number;
+  lastRole?: string;
+  lastPreview?: string;
+  hasActiveRun: boolean;
+}): { presence: OfficePresence; label: string; reason: string } {
+  const { updatedAt, nowMs, lastRole, lastPreview, hasActiveRun } = args;
+  const deltaMinutes = minutesSince(updatedAt, nowMs);
+  const housekeeping = isSilentOrHousekeeping(lastRole, lastPreview);
+
+  if (hasActiveRun) {
+    return {
+      presence: 'working',
+      label: 'Trabajando',
+      reason: 'Tiene una ejecución activa en este momento.',
+    };
+  }
+
+  if (deltaMinutes <= ACTIVE_MINUTES && lastRole === 'assistant' && !housekeeping) {
+    return {
+      presence: 'working',
+      label: 'Trabajando',
+      reason: 'Acaba de generar actividad real recientemente.',
+    };
+  }
+
+  if (deltaMinutes <= ACTIVE_MINUTES && lastRole === 'user') {
+    return {
+      presence: 'idle',
+      label: 'En espera',
+      reason: 'Recibió un mensaje reciente y está a la espera del siguiente paso.',
+    };
+  }
+
+  if (deltaMinutes <= IDLE_MINUTES) {
+    return {
+      presence: 'idle',
+      label: 'En espera',
+      reason: housekeeping
+        ? 'Solo hubo actividad de control reciente; no hay trabajo largo corriendo.'
+        : 'Tiene actividad reciente, pero no un proceso activo en curso.',
+    };
+  }
+
+  return {
+    presence: 'offline',
+    label: 'Sin actividad',
+    reason: 'No hay actividad reciente detectada en esta sesión.',
+  };
 }
 
 function parseModel(modelId?: string) {
@@ -191,10 +249,10 @@ function friendlyName(sessionKey: string, label?: string) {
   const channel = parts[2];
   const tail = parts[parts.length - 1];
 
-  if (parts[0] === 'agent' && parts[1] === 'main') return 'Enrique';
-  if (channel === 'telegram') return `Telegram · ${tail}`;
-  if (channel === 'whatsapp') return `WhatsApp · ${tail}`;
-  if (channel === 'subagent') return `Subagent · ${tail.slice(0, 8)}`;
+  if (sessionKey === 'agent:main:main') return 'Enrique';
+  if (channel === 'telegram') return 'Enrique · Telegram';
+  if (channel === 'whatsapp') return 'Enrique · WhatsApp';
+  if (channel === 'subagent') return `Subagente · ${tail.slice(0, 8)}`;
 
   return titleCase(channel || tail || sessionKey);
 }
@@ -282,99 +340,14 @@ function isRunActive(run: RunEntry, nowMs: number) {
   return nowMs - timestamp < 3 * 60 * 60 * 1000;
 }
 
-function buildMockSnapshot(now: Date, defaultModel = 'openai-codex/gpt-5.4'): OfficeSnapshot {
-  const generatedAt = now.toISOString();
-  const mainModel = parseModel(defaultModel);
-
-  const mockAgents: OfficeAgentSnapshot[] = [
-    {
-      id: 'fallback-marco',
-      displayName: 'Marco',
-      provider: 'openai-codex',
-      model: 'gpt-5.4',
-      presence: 'working',
-      tokensUsed: 58214,
-      activeSessions: 1,
-      recentFiles: ['app/office/page.tsx', 'app/api/office/route.ts', 'components/office/OfficeScene.tsx'],
-      logPreview: 'Implementando vista /office con telemetría en vivo y refresco de 30 segundos.',
-      updatedAt: generatedAt,
-      sessionIds: ['fallback-session-marco'],
-      channel: 'subagent',
-      telemetry: 'fallback',
-    },
-    {
-      id: 'fallback-core',
-      displayName: 'Enrique',
-      provider: mainModel.provider,
-      model: mainModel.model,
-      presence: 'idle',
-      tokensUsed: 214083,
-      activeSessions: 1,
-      recentFiles: ['openclaw.json', 'subagents/runs.json'],
-      logPreview: 'Consolidando mensajes recientes y coordinando handoffs entre sesiones.',
-      updatedAt: new Date(now.getTime() - 12 * 60 * 1000).toISOString(),
-      sessionIds: ['fallback-session-core'],
-      channel: 'main',
-      telemetry: 'fallback',
-    },
-  ];
-
-  const mockSessions: OfficeSessionSnapshot[] = mockAgents.map((agent, index) => ({
-    id: `fallback-session-${index + 1}`,
-    agentId: agent.id,
-    sessionKey: agent.id,
-    title: agent.displayName,
-    channel: agent.channel,
-    kind: 'conversation',
-    status: agent.presence,
-    active: agent.presence !== 'offline',
-    messageCount: 12 + index * 4,
-    tokenCount: agent.tokensUsed,
-    createdAt: new Date(now.getTime() - (index + 1) * 60 * 60 * 1000).toISOString(),
-    updatedAt: agent.updatedAt,
-    latestPreview: agent.logPreview,
-    recentMessages: [
-      {
-        id: `${agent.id}-log-1`,
-        role: 'assistant',
-        createdAt: agent.updatedAt,
-        preview: agent.logPreview,
-        tokenCount: Math.round(agent.tokensUsed / 8),
-      },
-    ],
-    recentFiles: agent.recentFiles,
-    provider: agent.provider,
-    model: agent.model,
-  }));
-
-  const mockBubbles: OfficeBubble[] = [
-    {
-      id: 'fallback-bubble-1',
-      agentId: mockAgents[0].id,
-      sessionId: mockSessions[0].id,
-      kind: 'handoff',
-      text: 'Ingeniero → Marco: levantar primer dashboard /office con telemetría real + fallback.',
-      createdAt: generatedAt,
-      from: 'Ingeniero',
-      to: 'Marco',
-    },
-    {
-      id: 'fallback-bubble-2',
-      agentId: mockAgents[1].id,
-      sessionId: mockSessions[1].id,
-      kind: 'update',
-      text: 'Enrique consolidó sesiones activas y dejó la escena lista para refrescarse sola.',
-      createdAt: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
-    },
-  ];
-
+function buildEmptySnapshot(now: Date): OfficeSnapshot {
   return {
-    generatedAt,
+    generatedAt: now.toISOString(),
     source: 'fallback',
-    agents: mockAgents,
-    sessions: mockSessions,
-    bubbles: mockBubbles,
-    stats: summarize(mockAgents),
+    agents: [],
+    sessions: [],
+    bubbles: [],
+    stats: summarize([]),
   };
 }
 
@@ -459,7 +432,7 @@ export async function GET() {
   );
 
   if (!conversations.length) {
-    return NextResponse.json(buildMockSnapshot(now, defaultModel));
+    return NextResponse.json(buildEmptySnapshot(now));
   }
 
   const messagesByConversation = new Map<number, MessageRow[]>();
@@ -499,7 +472,7 @@ export async function GET() {
     const fileEntries = filesByConversation.get(conversation.conversationId) || [];
 
     const updatedAt = toIso(run?.startedAt && toIso(run.startedAt) > toIso(conversation.lastActiveAt) ? run.startedAt : conversation.lastActiveAt);
-    const status = inferPresence(updatedAt, nowMs);
+    const hasActiveRun = isRunActive(run || { runId: '' }, nowMs);
 
     const recentFiles = Array.from(
       new Set([
@@ -514,8 +487,16 @@ export async function GET() {
     ).slice(0, 6);
 
     const bestSummary = summaryEntries.find((summary) => summary.preview)?.preview;
+    const freshestMessage = messageEntries[0];
     const meaningfulMessage = messageEntries.find((entry) => entry.preview && !entry.preview.startsWith('Razonamiento interno'))?.preview;
     const latestPreview = excerpt(bestSummary || meaningfulMessage || run?.task || conversation.lastPreview);
+    const statusMeta = describePresence({
+      updatedAt,
+      nowMs,
+      lastRole: freshestMessage?.role || conversation.lastRole,
+      lastPreview: freshestMessage?.preview || latestPreview,
+      hasActiveRun,
+    });
 
     return {
       id: `session-${conversation.conversationId}`,
@@ -525,8 +506,10 @@ export async function GET() {
       title: conversation.title || friendlyName(conversation.sessionKey, run?.label),
       channel: classifyChannel(conversation.sessionKey),
       kind: 'conversation',
-      status,
-      active: status !== 'offline' || isRunActive(run || { runId: '' }, nowMs),
+      status: statusMeta.presence,
+      statusLabel: statusMeta.label,
+      statusReason: statusMeta.reason,
+      active: statusMeta.presence !== 'offline' || hasActiveRun,
       messageCount: Number(conversation.messageCount || 0),
       tokenCount: Number(conversation.tokensUsed || 0),
       createdAt: toIso(run?.createdAt || conversation.createdAt || conversation.conversationUpdatedAt),
@@ -536,6 +519,7 @@ export async function GET() {
       recentFiles,
       provider: model.provider,
       model: model.model,
+      lastRole: freshestMessage?.role || conversation.lastRole,
       controllerSessionKey: run?.controllerSessionKey,
       requesterSessionKey: run?.requesterSessionKey,
     };
@@ -548,7 +532,15 @@ export async function GET() {
 
     const updatedAt = toIso(run.startedAt || run.createdAt);
     const model = parseModel(run.model || defaultModel);
-    const status = inferPresence(updatedAt, nowMs);
+    const hasActiveRun = isRunActive(run, nowMs);
+    const latestPreview = excerpt(run.task);
+    const statusMeta = describePresence({
+      updatedAt,
+      nowMs,
+      lastRole: 'handoff',
+      lastPreview: latestPreview,
+      hasActiveRun,
+    });
 
     sessions.push({
       id: `run-${run.runId}`,
@@ -557,13 +549,15 @@ export async function GET() {
       title: friendlyName(run.childSessionKey, run.label),
       channel: classifyChannel(run.childSessionKey),
       kind: 'subagent-run',
-      status,
-      active: isRunActive(run, nowMs),
+      status: statusMeta.presence,
+      statusLabel: statusMeta.label,
+      statusReason: statusMeta.reason,
+      active: hasActiveRun,
       messageCount: 0,
       tokenCount: 0,
       createdAt: toIso(run.createdAt),
       updatedAt,
-      latestPreview: excerpt(run.task),
+      latestPreview,
       recentMessages: run.task
         ? [
             {
@@ -578,6 +572,7 @@ export async function GET() {
       recentFiles: extractPaths(run.task),
       provider: model.provider,
       model: model.model,
+      lastRole: 'handoff',
       controllerSessionKey: run.controllerSessionKey,
       requesterSessionKey: run.requesterSessionKey,
     });
@@ -593,6 +588,8 @@ export async function GET() {
         provider: session.provider,
         model: session.model,
         presence: session.status,
+        statusLabel: session.statusLabel,
+        statusReason: session.statusReason,
         tokensUsed: session.tokenCount,
         activeSessions: session.active ? 1 : 0,
         recentFiles: session.recentFiles,
@@ -626,6 +623,7 @@ export async function GET() {
   sessions.forEach((session) => {
     const freshestLog = session.recentMessages[0];
     if (!freshestLog) return;
+    if (isSilentOrHousekeeping(freshestLog.role, freshestLog.preview)) return;
 
     bubbles.push({
       id: `update-${session.id}`,
@@ -647,7 +645,7 @@ export async function GET() {
   let finalBubbles = sortedBubbles;
 
   if (!agents.length) {
-    const fallback = buildMockSnapshot(now, defaultModel);
+    const fallback = buildEmptySnapshot(now);
     source = 'fallback';
     finalAgents = fallback.agents;
     finalSessions = fallback.sessions;

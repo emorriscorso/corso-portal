@@ -1,72 +1,76 @@
-import type { CSSProperties } from 'react';
 import type { OfficeAgentSnapshot } from '@/lib/office-types';
 
 interface OfficeAgentFigureProps {
   agent: OfficeAgentSnapshot;
-  x: number;
-  y: number;
   selected: boolean;
   onSelect: (agentId: string) => void;
 }
 
 const PRESENCE_STYLES = {
   working: {
-    glow: 'shadow-[0_0_30px_rgba(94,234,212,0.35)]',
-    ring: 'border-emerald-300/45',
-    badge: 'bg-emerald-300/20 text-emerald-100',
-    animation: 'office-agent office-agent--working',
+    dot: 'bg-emerald-500',
+    badge: 'border-emerald-600/20 bg-emerald-500/10 text-emerald-700',
+    ring: 'border-emerald-600/20',
   },
   idle: {
-    glow: 'shadow-[0_0_22px_rgba(251,191,36,0.2)]',
-    ring: 'border-amber-300/35',
-    badge: 'bg-amber-300/20 text-amber-100',
-    animation: 'office-agent office-agent--idle',
+    dot: 'bg-amber-500',
+    badge: 'border-amber-600/20 bg-amber-500/10 text-amber-700',
+    ring: 'border-amber-600/20',
   },
   offline: {
-    glow: 'shadow-[0_0_18px_rgba(100,116,139,0.2)]',
-    ring: 'border-slate-500/30',
-    badge: 'bg-slate-500/20 text-slate-200',
-    animation: 'office-agent office-agent--offline',
+    dot: 'bg-slate-400',
+    badge: 'border-slate-500/20 bg-slate-500/10 text-slate-600',
+    ring: 'border-slate-500/20',
   },
 } as const;
 
-export default function OfficeAgentFigure({ agent, x, y, selected, onSelect }: OfficeAgentFigureProps) {
-  const style = {
-    left: `${x}%`,
-    top: `${y}%`,
-  } as CSSProperties;
+function formatRelativeTime(value: string) {
+  const deltaMinutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
 
+  if (deltaMinutes < 1) return 'Justo ahora';
+  if (deltaMinutes === 1) return 'Hace 1 min';
+  if (deltaMinutes < 60) return `Hace ${deltaMinutes} min`;
+
+  const deltaHours = Math.round(deltaMinutes / 60);
+  if (deltaHours === 1) return 'Hace 1 hora';
+  if (deltaHours < 24) return `Hace ${deltaHours} horas`;
+
+  const deltaDays = Math.round(deltaHours / 24);
+  if (deltaDays === 1) return 'Hace 1 día';
+  return `Hace ${deltaDays} días`;
+}
+
+export default function OfficeAgentFigure({ agent, selected, onSelect }: OfficeAgentFigureProps) {
   const palette = PRESENCE_STYLES[agent.presence];
 
   return (
     <button
       type="button"
-      style={style}
       onClick={() => onSelect(agent.id)}
-      className={`absolute -translate-x-1/2 -translate-y-1/2 text-left ${palette.animation}`}
+      className={`w-full rounded-[1.5rem] border bg-[#f7f3ec] p-4 text-left text-[#211f20] transition hover:border-[#211f20]/18 hover:bg-[#fbf8f3] ${
+        selected ? 'border-[#211f20]/22 shadow-[0_18px_44px_rgba(33,31,32,0.10)]' : `border-[#211f20]/10 ${palette.ring}`
+      }`}
       aria-label={`Abrir detalle de ${agent.displayName}`}
     >
-      <div
-        className={`relative rounded-[1.5rem] border bg-[#0f131a]/90 px-3 py-3 backdrop-blur-sm transition ${palette.ring} ${palette.glow} ${
-          selected ? 'scale-[1.04] border-cyan-300/55 bg-[#121923]' : 'hover:scale-[1.02]'
-        }`}
-      >
-        <div className="mb-2 flex items-end gap-3">
-          <div className="office-figure">
-            <span className="office-figure__head" />
-            <span className="office-figure__torso" />
-            <span className="office-figure__legs" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm text-[#211f20]">
+            <span className={`h-2.5 w-2.5 rounded-full ${palette.dot}`} />
+            <span className="truncate">{agent.displayName}</span>
           </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm text-corso-cream">{agent.displayName}</div>
-            <div className="truncate text-[11px] uppercase tracking-[0.28em] text-corso-subtle">{agent.model}</div>
-          </div>
+          <div className="mt-1 truncate text-xs uppercase tracking-[0.22em] text-[#211f20]/45">{agent.model}</div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 text-[11px]">
-          <span className={`rounded-full px-2 py-1 uppercase tracking-[0.25em] ${palette.badge}`}>{agent.presence}</span>
-          <span className="text-corso-subtle">{agent.activeSessions} sesión{agent.activeSessions === 1 ? '' : 'es'}</span>
-        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] ${palette.badge}`}>
+          {agent.statusLabel}
+        </span>
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-[#211f20]/72">{agent.statusReason}</p>
+
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[#211f20]/48">
+        <span>{agent.activeSessions} sesión activa</span>
+        <span>{formatRelativeTime(agent.updatedAt)}</span>
       </div>
     </button>
   );

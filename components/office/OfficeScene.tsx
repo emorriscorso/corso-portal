@@ -9,160 +9,111 @@ interface OfficeSceneProps {
   onSelectAgent: (agentId: string) => void;
 }
 
-const DESKS = [
-  { x: 18, y: 30 },
-  { x: 36, y: 28 },
-  { x: 54, y: 30 },
-  { x: 72, y: 28 },
-  { x: 24, y: 54 },
-  { x: 42, y: 52 },
-  { x: 60, y: 54 },
-  { x: 78, y: 52 },
-];
-
-const WAYPOINTS = [
-  { x: 12, y: 22 },
-  { x: 24, y: 70 },
-  { x: 48, y: 18 },
-  { x: 54, y: 72 },
-  { x: 84, y: 18 },
-  { x: 88, y: 64 },
-  { x: 14, y: 48 },
-  { x: 70, y: 74 },
-];
-
-const REST_AREA = [
-  { x: 86, y: 84 },
-  { x: 76, y: 86 },
-  { x: 66, y: 84 },
-  { x: 56, y: 86 },
-  { x: 46, y: 84 },
-  { x: 36, y: 86 },
-];
-
-function buildPosition(index: number, anchors: Array<{ x: number; y: number }>) {
-  const base = anchors[index % anchors.length];
-  const layer = Math.floor(index / anchors.length);
-
-  return {
-    x: base.x + (layer % 3) * 2,
-    y: base.y + Math.floor(layer / 3) * 3,
-  };
-}
-
-function formatBubbleText(text: string) {
-  return text.length > 74 ? `${text.slice(0, 71)}...` : text;
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
 }
 
 export default function OfficeScene({ agents, bubbles, selectedAgentId, loading, onSelectAgent }: OfficeSceneProps) {
-  const workingAgents = agents.filter((agent) => agent.presence === 'working');
-  const idleAgents = agents.filter((agent) => agent.presence === 'idle');
-  const offlineAgents = agents.filter((agent) => agent.presence === 'offline');
-
-  const positionMap = new Map<string, { x: number; y: number }>();
-
-  workingAgents.forEach((agent, index) => {
-    positionMap.set(agent.id, buildPosition(index, DESKS));
-  });
-
-  idleAgents.forEach((agent, index) => {
-    positionMap.set(agent.id, buildPosition(index, WAYPOINTS));
-  });
-
-  offlineAgents.forEach((agent, index) => {
-    positionMap.set(agent.id, buildPosition(index, REST_AREA));
-  });
-
-  const visibleBubbles = bubbles
-    .filter((bubble) => positionMap.has(bubble.agentId))
-    .slice(0, 8);
+  const groups = [
+    {
+      key: 'working' as const,
+      title: 'Trabajando',
+      description: 'Solo se muestra aquí si hay ejecución real o actividad reciente sustantiva.',
+      items: agents.filter((agent) => agent.presence === 'working'),
+    },
+    {
+      key: 'idle' as const,
+      title: 'En espera',
+      description: 'Actividad reciente sin proceso largo activo.',
+      items: agents.filter((agent) => agent.presence === 'idle'),
+    },
+    {
+      key: 'offline' as const,
+      title: 'Sin actividad',
+      description: 'Sin señal reciente en la telemetría.',
+      items: agents.filter((agent) => agent.presence === 'offline'),
+    },
+  ];
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#07090d] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="rounded-[2rem] border border-[#ede9e0]/14 bg-[#f2ede5] p-4 text-[#211f20] shadow-[0_24px_60px_rgba(0,0,0,0.16)] sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="text-sm uppercase tracking-[0.35em] text-corso-subtle">Escena operativa</h3>
-          <p className="mt-1 text-sm text-corso-subtle">
-            Activos en escritorio, pausados en tránsito, offline en quiet bay.
+          <h3 className="text-sm uppercase tracking-[0.28em] text-[#211f20]/46">Estado operativo</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#211f20]/68">
+            La vista se organiza por estado real, no por decoración. Si no hay telemetría suficiente, no se inventa actividad.
           </p>
         </div>
-        {loading && <div className="text-xs uppercase tracking-[0.35em] text-cyan-200">Sincronizando...</div>}
+        {loading && <div className="text-xs uppercase tracking-[0.28em] text-[#211f20]/48">Actualizando…</div>}
       </div>
 
-      <div className="office-scene relative min-h-[620px] overflow-hidden rounded-[1.75rem] border border-white/5 bg-[radial-gradient(circle_at_top,_rgba(51,65,85,0.45),_transparent_42%),linear-gradient(180deg,_#121826_0%,_#0b1019_30%,_#06080d_100%)]">
-        <div className="office-scene__scanlines" />
-        <div className="office-scene__vignette" />
-        <div className="office-scene__ambient" />
-
-        <div className="absolute inset-x-[10%] top-[12%] h-[16%] rounded-[2rem] border border-cyan-400/10 bg-cyan-400/5 blur-2xl" />
-        <div className="absolute left-[5%] top-[18%] text-[10px] uppercase tracking-[0.45em] text-cyan-100/70">Command floor</div>
-        <div className="absolute left-[7%] top-[72%] text-[10px] uppercase tracking-[0.45em] text-amber-100/70">Transit lane</div>
-        <div className="absolute right-[7%] top-[84%] text-[10px] uppercase tracking-[0.45em] text-slate-200/60">Quiet bay</div>
-
-        <div className="absolute inset-x-[8%] bottom-[12%] top-[18%] rounded-[2.5rem] border border-white/5 bg-[linear-gradient(180deg,rgba(15,23,42,0.1),rgba(6,8,13,0.4)),linear-gradient(120deg,rgba(15,23,42,0.32),transparent_60%)]" />
-        <div className="absolute inset-x-[10%] top-[44%] h-px bg-white/10" />
-        <div className="absolute inset-x-[10%] top-[66%] h-px bg-white/5" />
-
-        {DESKS.map((desk, index) => {
-          const occupant = workingAgents[index] || null;
-          return (
-            <div
-              key={`desk-${index}`}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${desk.x}%`, top: `${desk.y + 7}%` }}
-            >
-              <div className={`office-desk ${occupant ? 'office-desk--active' : ''}`}>
-                <div className="office-desk__monitor" />
-                <div className="office-desk__surface" />
-                <div className="office-desk__chair" />
+      {agents.length ? (
+        <div className="mt-5 grid gap-4 xl:grid-cols-3">
+          {groups.map((group) => (
+            <section key={group.key} className="rounded-[1.5rem] border border-[#211f20]/10 bg-white/55 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm uppercase tracking-[0.24em] text-[#211f20]/52">{group.title}</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-[#211f20]/62">{group.description}</p>
+                </div>
+                <span className="rounded-full border border-[#211f20]/10 bg-white/70 px-2.5 py-1 text-xs text-[#211f20]/58">
+                  {group.items.length}
+                </span>
               </div>
-            </div>
-          );
-        })}
 
-        <div className="absolute inset-x-[10%] bottom-[8%] flex gap-4 overflow-hidden rounded-[2rem] border border-white/5 bg-white/[0.02] px-6 py-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={`rest-${index}`} className="flex-1 rounded-[1.5rem] border border-white/5 bg-slate-400/[0.04] p-3">
-              <div className="mb-2 h-2 w-12 rounded-full bg-white/10" />
-              <div className="h-10 rounded-[1rem] bg-white/[0.03]" />
-            </div>
+              <div className="mt-4 space-y-3">
+                {group.items.length ? (
+                  group.items.map((agent) => (
+                    <OfficeAgentFigure
+                      key={agent.id}
+                      agent={agent}
+                      selected={selectedAgentId === agent.id}
+                      onSelect={onSelectAgent}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed border-[#211f20]/12 bg-white/35 px-4 py-5 text-sm text-[#211f20]/44">
+                    No hay agentes en este estado.
+                  </div>
+                )}
+              </div>
+            </section>
           ))}
         </div>
+      ) : (
+        <div className="mt-5 rounded-[1.5rem] border border-dashed border-[#211f20]/14 bg-white/45 px-5 py-6 text-sm leading-relaxed text-[#211f20]/58">
+          No hay telemetría disponible en este momento. La pantalla queda vacía antes de inventar agentes o actividad.
+        </div>
+      )}
 
-        {agents.map((agent) => {
-          const position = positionMap.get(agent.id) || { x: 50, y: 50 };
+      {bubbles.length ? (
+        <section className="mt-5 rounded-[1.5rem] border border-[#211f20]/10 bg-white/55 p-4">
+          <div>
+            <h4 className="text-sm uppercase tracking-[0.24em] text-[#211f20]/52">Actividad reciente</h4>
+            <p className="mt-2 text-sm text-[#211f20]/62">Últimos eventos sustantivos visibles en la telemetría.</p>
+          </div>
 
-          return (
-            <OfficeAgentFigure
-              key={agent.id}
-              agent={agent}
-              x={position.x}
-              y={position.y}
-              selected={selectedAgentId === agent.id}
-              onSelect={onSelectAgent}
-            />
-          );
-        })}
-
-        {visibleBubbles.map((bubble, index) => {
-          const anchor = positionMap.get(bubble.agentId);
-          if (!anchor) return null;
-
-          return (
-            <div
-              key={bubble.id}
-              className={`office-bubble ${bubble.kind === 'handoff' ? 'office-bubble--handoff' : 'office-bubble--update'}`}
-              style={{
-                left: `${Math.min(anchor.x + (index % 2 === 0 ? 5 : -11), 92)}%`,
-                top: `${Math.max(anchor.y - 14 - (index % 3) * 3, 10)}%`,
-              }}
-            >
-              <div className="text-[10px] uppercase tracking-[0.32em] text-white/55">{bubble.kind}</div>
-              <div className="mt-1 text-xs leading-relaxed text-corso-cream">{formatBubbleText(bubble.text)}</div>
-            </div>
-          );
-        })}
-      </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {bubbles.slice(0, 6).map((bubble) => (
+              <article key={bubble.id} className="rounded-[1.25rem] border border-[#211f20]/10 bg-[#fbf8f3] px-4 py-3">
+                <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.22em] text-[#211f20]/48">
+                  <span>{bubble.kind === 'handoff' ? 'Handoff' : 'Actualización'}</span>
+                  <span>{formatTime(bubble.createdAt)}</span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-[#211f20]/72">{bubble.text}</p>
+                {(bubble.from || bubble.to) && (
+                  <p className="mt-2 text-xs text-[#211f20]/46">
+                    {bubble.from || 'Origen'} → {bubble.to || 'Destino'}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

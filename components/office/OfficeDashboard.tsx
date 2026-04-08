@@ -58,7 +58,7 @@ export default function OfficeDashboard() {
           return current;
         }
 
-        return payload.agents.find((agent) => agent.presence === 'working')?.id || payload.agents[0]?.id || null;
+        return payload.agents[0]?.id || null;
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo cargar la oficina.');
@@ -91,28 +91,26 @@ export default function OfficeDashboard() {
   const agents = useMemo(() => sortAgents(snapshot?.agents || []), [snapshot]);
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) || agents[0] || null;
 
+  const sourceLabel = snapshot?.source === 'real' ? 'Telemetría real' : 'Sin telemetría suficiente';
+
   return (
-    <div className="office-shell min-h-[calc(100vh-10rem)] -mx-4 sm:-mx-8 px-4 sm:px-8 py-2 sm:py-4">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
-        <section className="rounded-[2rem] border border-white/10 bg-black/30 px-5 py-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7">
+    <div className="office-shell min-h-[calc(100vh-10rem)] py-2 sm:py-4">
+      <div className="mx-auto flex max-w-[1480px] flex-col gap-6">
+        <section className="rounded-[2rem] border border-[#ede9e0]/14 bg-[#f2ede5] px-5 py-5 text-[#211f20] shadow-[0_24px_60px_rgba(0,0,0,0.16)] sm:px-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.35em] text-cyan-200">
-                  Live office
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#211f20]/10 bg-white/65 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-[#211f20]/55">
+                  Live Office
                 </span>
-                {snapshot && (
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-corso-subtle">
-                    Fuente {snapshot.source}
-                  </span>
-                )}
+                <span className="rounded-full border border-[#211f20]/10 bg-white/65 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-[#211f20]/55">
+                  {sourceLabel}
+                </span>
               </div>
-              <h2 className="font-cormorant text-3xl font-normal tracking-[0.08em] text-corso-cream sm:text-5xl">
-                Oficina de agentes
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm text-corso-subtle sm:text-base">
-                Telemetría operativa de OpenClaw sobre esta Mac: sesiones, recencia, handoffs y contexto reciente.
-                La escena refresca cada 30 segundos y al volver a la pestaña.
+              <h2 className="text-3xl tracking-[0.04em] text-[#211f20] sm:text-5xl">Oficina de agentes</h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#211f20]/68 sm:text-base">
+                Vista ejecutiva del estado real de agentes y sesiones en esta Mac mini. La pantalla prioriza claridad:
+                menos ruido visual, más contexto útil y sin datos inventados.
               </p>
             </div>
 
@@ -120,36 +118,36 @@ export default function OfficeDashboard() {
               <button
                 type="button"
                 onClick={loadSnapshot}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-corso-cream hover:border-cyan-300/40 hover:bg-cyan-400/10"
+                className="rounded-full border border-[#211f20]/12 bg-white/70 px-4 py-2 text-sm text-[#211f20]/78 hover:border-[#211f20]/20 hover:bg-white"
               >
                 Refrescar ahora
               </button>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
-                <div className="text-[11px] uppercase tracking-[0.35em] text-corso-subtle">Último pulso</div>
-                <div className="mt-1 text-sm text-corso-cream">{snapshot ? formatTime(snapshot.generatedAt) : '--:--'}</div>
+              <div className="rounded-[1.5rem] border border-[#211f20]/10 bg-white/60 px-4 py-3 text-right">
+                <div className="text-[11px] uppercase tracking-[0.28em] text-[#211f20]/46">Último pulso</div>
+                <div className="mt-1 text-sm text-[#211f20]">{snapshot ? formatTime(snapshot.generatedAt) : '--:--'}</div>
               </div>
             </div>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             {[
-              ['Agentes', snapshot?.stats.totalAgents || 0],
+              ['Agentes visibles', snapshot?.stats.totalAgents || 0],
               ['Trabajando', snapshot?.stats.working || 0],
-              ['En pausa', snapshot?.stats.idle || 0],
-              ['Offline', snapshot?.stats.offline || 0],
+              ['En espera', snapshot?.stats.idle || 0],
+              ['Sin actividad', snapshot?.stats.offline || 0],
               ['Sesiones activas', snapshot?.stats.activeSessions || 0],
               ['Tokens', snapshot?.stats.totalTokens || 0],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.3em] text-corso-subtle">{label}</div>
-                <div className="mt-2 text-2xl text-corso-cream">{formatNumber(Number(value))}</div>
+              <div key={label} className="rounded-[1.5rem] border border-[#211f20]/10 bg-white/60 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.24em] text-[#211f20]/46">{label}</div>
+                <div className="mt-2 text-2xl text-[#211f20]">{formatNumber(Number(value))}</div>
               </div>
             ))}
           </div>
         </section>
 
         {error && (
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+          <div className="rounded-[1.5rem] border border-amber-500/20 bg-amber-100/90 px-4 py-3 text-sm text-amber-900">
             No pude cargar la telemetría en vivo: {error}
           </div>
         )}
@@ -164,40 +162,35 @@ export default function OfficeDashboard() {
               onSelectAgent={setSelectedAgentId}
             />
 
-            <section className="rounded-[1.75rem] border border-white/10 bg-black/25 p-4 backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm uppercase tracking-[0.35em] text-corso-subtle">Roster</h3>
-                  <p className="mt-1 text-sm text-corso-subtle">Selecciona un agente si quieres abrir su panel de detalle.</p>
-                </div>
+            <section className="rounded-[2rem] border border-[#ede9e0]/14 bg-[#f2ede5] p-4 text-[#211f20] shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
+              <div className="mb-3">
+                <h3 className="text-sm uppercase tracking-[0.28em] text-[#211f20]/46">Selector rápido</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#211f20]/62">
+                  Cambie el enfoque sin perder el contexto del panel lateral.
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {agents.map((agent) => (
-                  <button
-                    key={agent.id}
-                    type="button"
-                    onClick={() => setSelectedAgentId(agent.id)}
-                    className={`rounded-full border px-3 py-2 text-left text-sm transition ${
-                      selectedAgent?.id === agent.id
-                        ? 'border-cyan-300/50 bg-cyan-300/15 text-cyan-100'
-                        : 'border-white/10 bg-white/5 text-corso-cream hover:border-white/25 hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle">
-                      <span
-                        className={`block h-2.5 w-2.5 rounded-full ${
-                          agent.presence === 'working'
-                            ? 'bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]'
-                            : agent.presence === 'idle'
-                              ? 'bg-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.65)]'
-                              : 'bg-slate-500'
-                        }`}
-                      />
-                    </span>
-                    {agent.displayName}
-                  </button>
-                ))}
+                {agents.length ? (
+                  agents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => setSelectedAgentId(agent.id)}
+                      className={`rounded-full border px-3 py-2 text-left text-sm transition ${
+                        selectedAgent?.id === agent.id
+                          ? 'border-[#211f20]/20 bg-white text-[#211f20]'
+                          : 'border-[#211f20]/10 bg-white/60 text-[#211f20]/72 hover:border-[#211f20]/18 hover:bg-white'
+                      }`}
+                    >
+                      {agent.displayName}
+                    </button>
+                  ))
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed border-[#211f20]/12 bg-white/45 px-4 py-4 text-sm text-[#211f20]/44">
+                    Todavía no hay agentes visibles en la telemetría.
+                  </div>
+                )}
               </div>
             </section>
           </div>
