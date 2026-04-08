@@ -20,8 +20,8 @@ export default function AppCard({
       <div className="bg-corso-darkHover/50 border border-corso-cream/10 rounded-lg p-6 h-full flex flex-col items-center justify-center text-center opacity-50 cursor-not-allowed animate-fadeIn">
         <div className="text-5xl mb-4">{icon}</div>
         <h3 className="font-cormorant text-xl font-semibold mb-1">{name}</h3>
-        <p className="text-curso-subtle text-sm mb-3">{description}</p>
-        <span className="text-xs bg-corso-cream/10 text-curso-subtle px-3 py-1 rounded-full">
+        <p className="text-corso-subtle text-sm mb-3">{description}</p>
+        <span className="text-xs bg-corso-cream/10 text-corso-subtle px-3 py-1 rounded-full">
           Próximamente
         </span>
       </div>

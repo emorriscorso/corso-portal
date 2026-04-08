@@ -22,7 +22,7 @@ export default function Greeting() {
       <h2 className="font-cormorant text-3xl sm:text-4xl font-normal mb-2">
         {greeting}.
       </h2>
-      <p className="text-curso-subtle text-lg">
+      <p className="text-corso-subtle text-lg">
         ¿En qué trabajamos hoy?
       </p>
     </div>
