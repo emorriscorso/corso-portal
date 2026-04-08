@@ -191,7 +191,7 @@ function friendlyName(sessionKey: string, label?: string) {
   const channel = parts[2];
   const tail = parts[parts.length - 1];
 
-  if (sessionKey === 'agent:main:main') return 'OpenClaw Core';
+  if (parts[0] === 'agent' && parts[1] === 'main') return 'Enrique';
   if (channel === 'telegram') return `Telegram · ${tail}`;
   if (channel === 'whatsapp') return `WhatsApp · ${tail}`;
   if (channel === 'subagent') return `Subagent · ${tail.slice(0, 8)}`;
@@ -282,8 +282,9 @@ function isRunActive(run: RunEntry, nowMs: number) {
   return nowMs - timestamp < 3 * 60 * 60 * 1000;
 }
 
-function buildMockSnapshot(now: Date): OfficeSnapshot {
+function buildMockSnapshot(now: Date, defaultModel = 'openai-codex/gpt-5.4'): OfficeSnapshot {
   const generatedAt = now.toISOString();
+  const mainModel = parseModel(defaultModel);
 
   const mockAgents: OfficeAgentSnapshot[] = [
     {
@@ -303,9 +304,9 @@ function buildMockSnapshot(now: Date): OfficeSnapshot {
     },
     {
       id: 'fallback-core',
-      displayName: 'OpenClaw Core',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      displayName: 'Enrique',
+      provider: mainModel.provider,
+      model: mainModel.model,
       presence: 'idle',
       tokensUsed: 214083,
       activeSessions: 1,
@@ -314,21 +315,6 @@ function buildMockSnapshot(now: Date): OfficeSnapshot {
       updatedAt: new Date(now.getTime() - 12 * 60 * 1000).toISOString(),
       sessionIds: ['fallback-session-core'],
       channel: 'main',
-      telemetry: 'fallback',
-    },
-    {
-      id: 'fallback-audit',
-      displayName: 'Auditor',
-      provider: 'openai-codex',
-      model: 'gpt-5.4',
-      presence: 'offline',
-      tokensUsed: 83199,
-      activeSessions: 0,
-      recentFiles: ['memory/2026-04-07.md', 'logs/observer.log'],
-      logPreview: 'Sin actividad reciente; último pase de observación archivado.',
-      updatedAt: new Date(now.getTime() - 96 * 60 * 1000).toISOString(),
-      sessionIds: ['fallback-session-audit'],
-      channel: 'internal',
       telemetry: 'fallback',
     },
   ];
@@ -377,7 +363,7 @@ function buildMockSnapshot(now: Date): OfficeSnapshot {
       agentId: mockAgents[1].id,
       sessionId: mockSessions[1].id,
       kind: 'update',
-      text: 'Core consolidó sesiones activas y dejó la escena lista para refrescarse sola.',
+      text: 'Enrique consolidó sesiones activas y dejó la escena lista para refrescarse sola.',
       createdAt: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
     },
   ];
@@ -473,7 +459,7 @@ export async function GET() {
   );
 
   if (!conversations.length) {
-    return NextResponse.json(buildMockSnapshot(now));
+    return NextResponse.json(buildMockSnapshot(now, defaultModel));
   }
 
   const messagesByConversation = new Map<number, MessageRow[]>();
@@ -660,12 +646,12 @@ export async function GET() {
   let finalSessions = sessions;
   let finalBubbles = sortedBubbles;
 
-  if (agents.length < 4) {
-    const fallback = buildMockSnapshot(now);
-    source = 'mixed';
-    finalAgents = [...agents, ...fallback.agents.filter((agent) => !agents.some((existing) => existing.id === agent.id))];
-    finalSessions = [...sessions, ...fallback.sessions.filter((session) => !sessions.some((existing) => existing.id === session.id))];
-    finalBubbles = [...sortedBubbles, ...fallback.bubbles].slice(0, 18);
+  if (!agents.length) {
+    const fallback = buildMockSnapshot(now, defaultModel);
+    source = 'fallback';
+    finalAgents = fallback.agents;
+    finalSessions = fallback.sessions;
+    finalBubbles = fallback.bubbles;
   }
 
   const snapshot: OfficeSnapshot = {
